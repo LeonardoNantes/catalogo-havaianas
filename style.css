@@ -395,7 +395,7 @@ body {
 }
 
 .produto-imagem-wrap-grupo {
-  background: var(--cor-fundo);
+  background: var(--cor-branco);
   padding: 14px;
   display: flex;
   justify-content: center;
