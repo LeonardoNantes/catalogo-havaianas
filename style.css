@@ -255,7 +255,7 @@ body {
 
 .segmento-card-nome,
 .colecao-card-nome {
-  font-size: 0.85rem;
+  font-size: 0.94rem;
   font-weight: 700;
   line-height: 1.15;
   position: relative;
@@ -263,7 +263,7 @@ body {
 }
 
 .colecao-card-preco {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 600;
   opacity: 0.9;
   position: relative;
@@ -416,7 +416,7 @@ body {
 
 .produto-cor-nome {
   margin: 0 0 10px;
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 700;
   text-align: center;
 }
@@ -438,7 +438,7 @@ body {
 }
 
 .numeracao-item-tam {
-  font-size: 0.76rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: var(--cor-texto-suave);
 }

@@ -70,16 +70,21 @@ function agruparPor(produtos, chave) {
   return mapa;
 }
 
+// Pega a paleta de tons daquele segmento (cada segmento tem a sua, definida
+// em config.js). Se algum segmento novo aparecer sem paleta cadastrada, cai
+// de volta na paleta do Masculino (azul) só por segurança.
+function paletaDoSegmento(segmento) {
+  return CONFIG.paletasPorSegmento[segmento] || CONFIG.paletasPorSegmento.Masculino;
+}
+
 // ---------- Tela 1: cards de SEGMENTO ----------
 function renderizarCardsSegmento() {
   const grade = document.getElementById("grade-segmentos");
   grade.innerHTML = "";
-  const paleta = CONFIG.paletaCards;
-  let i = 0;
 
   for (const [segmento, produtos] of PRODUTOS_POR_SEGMENTO) {
-    const cor = paleta[i % paleta.length];
-    i++;
+    // O card do segmento usa o primeiro tom (o mais forte) da paleta dele.
+    const cor = paletaDoSegmento(segmento)[0];
 
     const card = document.createElement("button");
     card.className = "segmento-card";
@@ -102,7 +107,7 @@ function renderizarCardsColecao(produtosDoSegmento) {
   const grade = document.getElementById("grade-colecoes");
   grade.innerHTML = "";
   const porColecao = agruparPor(produtosDoSegmento, "colecao");
-  const paleta = CONFIG.paletaCards;
+  const paleta = paletaDoSegmento(SEGMENTO_ATUAL);
   let i = 0;
 
   for (const [colecao, produtos] of porColecao) {
