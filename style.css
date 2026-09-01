@@ -6,6 +6,7 @@
 :root {
   --cor-primaria: #0a4595;
   --cor-destaque: #ff7a1a;
+  --cor-dourada: #d4af37;
   --cor-fundo: #f5f7fb;
   --cor-texto: #1a1a1a;
   --cor-texto-suave: #6b6b76;
@@ -150,10 +151,10 @@ body {
   height: 64px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--cor-destaque);
+  border: 3px solid var(--cor-dourada);
   background: rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(255, 122, 26, 0.35), 0 2px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35), 0 2px 10px rgba(0, 0, 0, 0.35);
   position: relative;
   z-index: 1;
 }
