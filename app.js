@@ -239,9 +239,21 @@ function temItemEmNegociacao() {
   return false;
 }
 
-// Agrupa os itens do carrinho por coleção (na ordem em que cada coleção
-// apareceu primeiro no carrinho), e dentro dela por cor — mesma estrutura
-// usada no texto do pedido, pra ficar igual no app e no WhatsApp.
+// Comparador alfabético (ignora maiúsc./minúsc. e acentos) usado pra
+// ordenar coleções e cores no carrinho e no texto do pedido.
+function compararTexto(a, b) {
+  return a.localeCompare(b, "pt-BR", { sensitivity: "base" });
+}
+
+// Numeração tipo "37/38" -> 37, pra ordenar da menor pra maior.
+function numeracaoParaOrdenacao(numeracao) {
+  const primeiro = parseInt(numeracao, 10);
+  return Number.isNaN(primeiro) ? 0 : primeiro;
+}
+
+// Agrupa os itens do carrinho por coleção, em ordem alfabética — mesma
+// estrutura usada no painel do carrinho e no texto do pedido, pra ficar
+// igual no app e no WhatsApp.
 function agruparCarrinhoPorColecao() {
   const porColecao = new Map(); // colecao -> { produtoExemplo, itens: [{produto,quantidade}] }
   carrinho.forEach((item) => {
@@ -251,7 +263,32 @@ function agruparCarrinhoPorColecao() {
     }
     porColecao.get(colecao).itens.push(item);
   });
-  return porColecao;
+
+  const colecoesOrdenadas = [...porColecao.keys()].sort(compararTexto);
+  const porColecaoOrdenada = new Map();
+  colecoesOrdenadas.forEach((colecao) => porColecaoOrdenada.set(colecao, porColecao.get(colecao)));
+  return porColecaoOrdenada;
+}
+
+// Agrupa os itens de uma coleção por cor, em ordem alfabética, e dentro de
+// cada cor ordena as numerações da menor pra maior.
+function agruparItensPorCor(itens) {
+  const porCor = new Map();
+  itens.forEach((item) => {
+    const cor = item.produto.cor;
+    if (!porCor.has(cor)) porCor.set(cor, []);
+    porCor.get(cor).push(item);
+  });
+
+  const coresOrdenadas = [...porCor.keys()].sort(compararTexto);
+  const porCorOrdenada = new Map();
+  coresOrdenadas.forEach((cor) => {
+    const itensDaCor = porCor
+      .get(cor)
+      .sort((a, b) => numeracaoParaOrdenacao(a.produto.numeracao) - numeracaoParaOrdenacao(b.produto.numeracao));
+    porCorOrdenada.set(cor, itensDaCor);
+  });
+  return porCorOrdenada;
 }
 
 function renderizarPainelCarrinho() {
@@ -276,30 +313,33 @@ function renderizarPainelCarrinho() {
       }</span></p>
       `;
 
-      itens.forEach(({ produto, quantidade }) => {
-        const linha = document.createElement("div");
-        linha.className = "carrinho-item";
-        linha.innerHTML = `
-          <div class="carrinho-item-info">
-            <p class="carrinho-item-nome">${produto.cor} · ${produto.numeracao}</p>
-            <p class="carrinho-item-codigo">Cód. ${produto.codigo}</p>
-          </div>
-          <div class="qtd-seletor">
-            <button class="qtd-btn qtd-menos" aria-label="Diminuir quantidade">−</button>
-            <span class="qtd-valor">${quantidade}</span>
-            <button class="qtd-btn qtd-mais" aria-label="Aumentar quantidade">+</button>
-          </div>
-        `;
-        const qtdValorEl = linha.querySelector(".qtd-valor");
-        linha.querySelector(".qtd-mais").addEventListener("click", () => {
-          alterarQuantidade(produto, produto.fracao, qtdValorEl);
-          renderizarPainelCarrinho();
+      const porCor = agruparItensPorCor(itens);
+      porCor.forEach((itensDaCor) => {
+        itensDaCor.forEach(({ produto, quantidade }) => {
+          const linha = document.createElement("div");
+          linha.className = "carrinho-item";
+          linha.innerHTML = `
+            <div class="carrinho-item-info">
+              <p class="carrinho-item-nome">${produto.cor} · ${produto.numeracao}</p>
+              <p class="carrinho-item-codigo">Cód. ${produto.codigo}</p>
+            </div>
+            <div class="qtd-seletor">
+              <button class="qtd-btn qtd-menos" aria-label="Diminuir quantidade">−</button>
+              <span class="qtd-valor">${quantidade}</span>
+              <button class="qtd-btn qtd-mais" aria-label="Aumentar quantidade">+</button>
+            </div>
+          `;
+          const qtdValorEl = linha.querySelector(".qtd-valor");
+          linha.querySelector(".qtd-mais").addEventListener("click", () => {
+            alterarQuantidade(produto, produto.fracao, qtdValorEl);
+            renderizarPainelCarrinho();
+          });
+          linha.querySelector(".qtd-menos").addEventListener("click", () => {
+            alterarQuantidade(produto, -produto.fracao, qtdValorEl);
+            renderizarPainelCarrinho();
+          });
+          grupoColecao.appendChild(linha);
         });
-        linha.querySelector(".qtd-menos").addEventListener("click", () => {
-          alterarQuantidade(produto, -produto.fracao, qtdValorEl);
-          renderizarPainelCarrinho();
-        });
-        grupoColecao.appendChild(linha);
       });
 
       lista.appendChild(grupoColecao);
@@ -364,11 +404,7 @@ function montarTextoPedido() {
     const rotulo = exemplo.negociacao ? "Negociação" : formatarPreco(exemplo.preco);
     linhas.push(`> *${colecao.toUpperCase()} - ${rotulo}*`);
 
-    const porCor = new Map();
-    itens.forEach(({ produto, quantidade }) => {
-      if (!porCor.has(produto.cor)) porCor.set(produto.cor, []);
-      porCor.get(produto.cor).push({ produto, quantidade });
-    });
+    const porCor = agruparItensPorCor(itens);
 
     porCor.forEach((itensDaCor, cor) => {
       linhas.push(`- *${cor.toUpperCase()}*`);
