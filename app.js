@@ -448,8 +448,8 @@ async function iniciar() {
 
   const carregando = document.getElementById("carregando-app");
 
-  const vendedorAtivo = await verificarVendedorAtivo();
-  if (!vendedorAtivo) {
+  const statusVendedor = await buscarStatusVendedor();
+  if (!statusVendedor.ativo) {
     carregando.hidden = true;
     configurarBotaoPausado();
     mostrarTela("tela-pausado");
@@ -460,7 +460,7 @@ async function iniciar() {
   statusMsg.hidden = false;
   statusMsg.innerHTML = `<span class="spinner"></span> Carregando segmentos...`;
 
-  TODOS_PRODUTOS = await buscarProdutos();
+  TODOS_PRODUTOS = await buscarProdutos(statusVendedor.area);
   PRODUTOS_POR_SEGMENTO = agruparPor(TODOS_PRODUTOS, "segmento");
 
   statusMsg.hidden = true;
