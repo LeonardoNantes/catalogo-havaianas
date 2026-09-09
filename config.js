@@ -23,7 +23,7 @@ const CONFIG = {
     slogan: "O seu Vendedor!",
     foto: "assets/vendedor-foto.jpg",
     // Número de WhatsApp no formato internacional, só números (DDI 55 + DDD + número)
-    whatsapp: "5547997375295",
+    whatsapp: "5547992197999",
   },
 
   // ---- Cores da marca (usadas no cabeçalho e nos botões) ----
