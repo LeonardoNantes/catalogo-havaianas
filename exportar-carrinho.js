@@ -44,25 +44,21 @@ const EXPORT_VENDEDOR_LOGO_INICIO_X = 326;
 // (foto + nome da cor + coleção + etiqueta de preço), igual já é feito no
 // PDF — em vez de dividir o espaço disponível em fileiras fixas.
 //
-// O cartão da Imagem (PNG) segue as MESMAS proporções do cartão do PDF —
-// o PDF é a referência (pedido do Leonardo), então todo valor de
-// espaçamento/fonte da Imagem abaixo foi convertido a partir do valor
-// equivalente do PDF (que usa milímetros/pontos), multiplicando pela
-// mesma escala usada pra converter a área do molde (1414px molde = 210mm
-// de página A4 → 1mm de PDF = 1414/210 ≈ 6,73px de molde).
-const EXPORT_GRADE_PADCARD = 15; // = padCard do PDF (2.2mm) × 6,73
-const EXPORT_GRADE_GAP_FOTO_NOME = 25; // folga acima do bloco de texto
-const EXPORT_GRADE_GAP_NOME_COLECAO = 23; // = gapNomeColecao do PDF (3.4mm) × 6,73
-const EXPORT_GRADE_GAP_COLECAO_BADGE = 18; // = gapColecaoBadge do PDF (2.6mm) × 6,73
-const EXPORT_GRADE_LINHA_ALTURA_NOME = 23; // = linhaAlturaNome do PDF (3.4mm) × 6,73
+// Só a FONTE da Imagem segue a mesma escala do PDF (pedido do Leonardo —
+// o PDF é a referência de fonte). O espaçamento/proporção do cartão (pad,
+// folgas, altura da etiqueta, formato da foto, gutter) continua igual ao
+// que já era na Imagem antes, pra manter os 16 produtos por página.
+const EXPORT_GRADE_PADCARD = 10;
+const EXPORT_GRADE_GAP_FOTO_NOME = 20; // folga acima do bloco de texto
+const EXPORT_GRADE_GAP_NOME_COLECAO = 16;
+const EXPORT_GRADE_GAP_COLECAO_BADGE = 14;
+const EXPORT_GRADE_LINHA_ALTURA_NOME = 18;
 const EXPORT_GRADE_MAX_LINHAS_NOME = 2;
-const EXPORT_GRADE_ALTURA_BADGE = 65; // = alturaBadge do PDF (9.6mm) × 6,73
+const EXPORT_GRADE_ALTURA_BADGE = 52;
 // A foto do cartão fica um pouco mais baixa que larga (em vez de
-// quadrada) — mesmo fator do PDF (ver abaixo), pra foto e card terem a
-// mesma proporção nos dois formatos.
-const EXPORT_GRADE_FATOR_ALTURA_FOTO = 0.84;
-// Fator da foto no PDF (mesmo valor acima, repetido aqui só porque o
-// código do PDF usa essa constante com esse nome).
+// quadrada) — proporção própria da Imagem, independente do PDF.
+const EXPORT_GRADE_FATOR_ALTURA_FOTO = 0.93;
+// Fator da foto no PDF (só usado lá — a Imagem tem o seu próprio acima).
 const EXPORT_PDF_FATOR_ALTURA_FOTO = 0.84;
 // Azul da marca Havaianas (igual à corPrimaria do app) pra etiqueta de
 // preço e nome do vendedor; dourado (igual ao anel da foto do vendedor no
@@ -280,7 +276,7 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "italic 700 25px 'Playfair Display', serif";
       ctx.textAlign = "center";
-      ctx.fillText("Negociação", x + larguraCard / 2, yBadge + alturaBadge / 2 + 12);
+      ctx.fillText("Negociação", x + larguraCard / 2, yBadge + alturaBadge / 2 + 7);
       ctx.textAlign = "left";
     } else {
       const precoTexto = exportarFormatarPrecoSemPrefixo(card.produto.preco);
@@ -288,15 +284,15 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "700 16px 'Inter', sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText("R$", xBadge + 14, yBadge + 23);
+      ctx.fillText("R$", xBadge + 11, yBadge + 16);
       ctx.textAlign = "right";
       ctx.fillStyle = "#cfe0f5";
-      ctx.fillText("/par", xBadge + larguraBadge - 14, yBadge + 23);
+      ctx.fillText("/par", xBadge + larguraBadge - 11, yBadge + 16);
 
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "italic 700 36px 'Playfair Display', serif";
       ctx.textAlign = "center";
-      ctx.fillText(precoTexto, x + larguraCard / 2, yBadge + alturaBadge - 20);
+      ctx.fillText(precoTexto, x + larguraCard / 2, yBadge + alturaBadge - 14);
       ctx.textAlign = "left";
     }
   });
@@ -347,8 +343,8 @@ function exportarDesenharCabecalhoVendedorCanvas(ctx, imagemVendedor) {
 // espaço disponível, e portanto quantos cartões cabem por imagem.
 function exportarCalcularGradePng() {
   const colunas = 4;
-  const gutterH = 27; // = gutterH do PDF (4mm) × 6,73
-  const gutterV = 47; // = gutterV do PDF (7mm) × 6,73
+  const gutterH = 30;
+  const gutterV = 22;
   const padCard = EXPORT_GRADE_PADCARD;
   const { esq: areaEsq, dir: areaDir, topo: areaTopo, base: areaBase } = EXPORT_TEMPLATE_AREA;
   const larguraUtil = areaDir - areaEsq;
