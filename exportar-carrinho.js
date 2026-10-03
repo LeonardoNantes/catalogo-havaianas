@@ -31,11 +31,15 @@ const EXPORT_PNG_ESCALA = 2;
 // de fotos ocupa as bordas, o retângulo branco interno vai de x:34-1374 e
 // y:123-1970, a logo do topo termina perto de y:120).
 const EXPORT_TEMPLATE_AREA = { esq: 46, dir: 1362, topo: 150, base: 1958 };
-// Faixa do topo, à direita da logo "havaianas" (que fica centralizada e
-// termina por volta de x:930), onde entram a foto + nome do vendedor.
-const EXPORT_VENDEDOR_FOTO_X = 968;
+// Faixa do topo, à ESQUERDA da logo "havaianas" (que fica centralizada e
+// começa por volta de x:326) — mesmo padrão usado no Impala e no Nadir:
+// foto + nome do vendedor sempre do lado esquerdo, nunca do direito.
+const EXPORT_VENDEDOR_FOTO_X = 58;
 const EXPORT_VENDEDOR_FOTO_Y_CENTRO = 68;
-const EXPORT_VENDEDOR_FOTO_DIAMETRO = 70;
+const EXPORT_VENDEDOR_FOTO_DIAMETRO = 56;
+// Onde a logo "havaianas" começa (medido no arquivo) — usado só pra saber
+// até onde o nome do vendedor pode esticar antes de encostar nela.
+const EXPORT_VENDEDOR_LOGO_INICIO_X = 326;
 // A altura de cada cartão da Imagem é calculada a partir do conteúdo
 // (foto + nome da cor + coleção + etiqueta de preço), igual já é feito no
 // PDF — em vez de dividir o espaço disponível em fileiras fixas.
@@ -291,7 +295,7 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
   });
 }
 
-// ---------- Desenha a foto + nome do vendedor, à direita da logo ----------
+// ---------- Desenha a foto + nome do vendedor, à esquerda da logo ----------
 function exportarDesenharCabecalhoVendedorCanvas(ctx, imagemVendedor) {
   const diam = EXPORT_VENDEDOR_FOTO_DIAMETRO;
   const x = EXPORT_VENDEDOR_FOTO_X;
@@ -321,10 +325,13 @@ function exportarDesenharCabecalhoVendedorCanvas(ctx, imagemVendedor) {
 
   const nomeVendedor = (document.getElementById("vendedor-nome").textContent || "").trim();
   if (nomeVendedor) {
+    const xNome = x + diam + 16;
+    const larguraMaxNome = EXPORT_VENDEDOR_LOGO_INICIO_X - xNome - 10;
     ctx.fillStyle = EXPORT_COR_NOME_VENDEDOR;
-    ctx.font = "italic 700 22px 'Playfair Display', serif";
+    ctx.font = "italic 700 18px 'Playfair Display', serif";
     ctx.textAlign = "left";
-    ctx.fillText(nomeVendedor, x + diam + 16, yCentro + 7);
+    const linhaNome = exportarQuebrarTextoCanvas(ctx, nomeVendedor, larguraMaxNome, 1)[0];
+    ctx.fillText(linhaNome, xNome, yCentro + 6);
   }
 }
 
@@ -521,10 +528,14 @@ async function exportarGerarPdfCarrinho() {
 
       const nomeVendedor = (document.getElementById("vendedor-nome").textContent || "").trim();
       if (nomeVendedor) {
+        const xNome = xFoto + diamMm + 4;
+        const larguraMaxNome = EXPORT_VENDEDOR_LOGO_INICIO_X * escalaX - xNome - 3;
         doc.setFont("helvetica", "bolditalic");
-        doc.setFontSize(10.5);
+        doc.setFontSize(8.5);
         doc.setTextColor(10, 69, 149);
-        doc.text(nomeVendedor, xFoto + diamMm + 4, yCentroMm + 1.4);
+        const linhasNome = doc.splitTextToSize(nomeVendedor, larguraMaxNome);
+        const nomeExibido = linhasNome.length > 1 ? `${linhasNome[0]}…` : linhasNome[0];
+        doc.text(nomeExibido, xNome, yCentroMm + 1.2);
       }
     }
 
