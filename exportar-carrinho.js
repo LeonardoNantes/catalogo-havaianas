@@ -43,19 +43,26 @@ const EXPORT_VENDEDOR_LOGO_INICIO_X = 326;
 // A altura de cada cartão da Imagem é calculada a partir do conteúdo
 // (foto + nome da cor + coleção + etiqueta de preço), igual já é feito no
 // PDF — em vez de dividir o espaço disponível em fileiras fixas.
-const EXPORT_GRADE_PADCARD = 10;
-const EXPORT_GRADE_GAP_FOTO_NOME = 20;
-const EXPORT_GRADE_GAP_NOME_COLECAO = 16;
-const EXPORT_GRADE_GAP_COLECAO_BADGE = 14;
-const EXPORT_GRADE_LINHA_ALTURA_NOME = 18;
+//
+// O cartão da Imagem (PNG) segue as MESMAS proporções do cartão do PDF —
+// o PDF é a referência (pedido do Leonardo), então todo valor de
+// espaçamento/fonte da Imagem abaixo foi convertido a partir do valor
+// equivalente do PDF (que usa milímetros/pontos), multiplicando pela
+// mesma escala usada pra converter a área do molde (1414px molde = 210mm
+// de página A4 → 1mm de PDF = 1414/210 ≈ 6,73px de molde).
+const EXPORT_GRADE_PADCARD = 15; // = padCard do PDF (2.2mm) × 6,73
+const EXPORT_GRADE_GAP_FOTO_NOME = 25; // folga acima do bloco de texto
+const EXPORT_GRADE_GAP_NOME_COLECAO = 23; // = gapNomeColecao do PDF (3.4mm) × 6,73
+const EXPORT_GRADE_GAP_COLECAO_BADGE = 18; // = gapColecaoBadge do PDF (2.6mm) × 6,73
+const EXPORT_GRADE_LINHA_ALTURA_NOME = 23; // = linhaAlturaNome do PDF (3.4mm) × 6,73
 const EXPORT_GRADE_MAX_LINHAS_NOME = 2;
-const EXPORT_GRADE_ALTURA_BADGE = 52;
+const EXPORT_GRADE_ALTURA_BADGE = 65; // = alturaBadge do PDF (9.6mm) × 6,73
 // A foto do cartão fica um pouco mais baixa que larga (em vez de
-// quadrada) — abre espaço pra mais uma fileira sem precisar mexer no
-// tamanho dos cartões nem no espaço entre eles.
-const EXPORT_GRADE_FATOR_ALTURA_FOTO = 0.93;
-// Mesma ideia, só que pro PDF (que usa milímetros em vez de pixels, e
-// fontes um pouco maiores proporcionalmente).
+// quadrada) — mesmo fator do PDF (ver abaixo), pra foto e card terem a
+// mesma proporção nos dois formatos.
+const EXPORT_GRADE_FATOR_ALTURA_FOTO = 0.84;
+// Fator da foto no PDF (mesmo valor acima, repetido aqui só porque o
+// código do PDF usa essa constante com esse nome).
 const EXPORT_PDF_FATOR_ALTURA_FOTO = 0.84;
 // Azul da marca Havaianas (igual à corPrimaria do app) pra etiqueta de
 // preço e nome do vendedor; dourado (igual ao anel da foto do vendedor no
@@ -237,10 +244,10 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
     const xBadge = x + padCard;
     const yBadge = y + alturaCard - padCard - alturaBadge;
 
-    ctx.font = "600 11px 'Inter', sans-serif";
+    ctx.font = "600 17px 'Inter', sans-serif";
     const linhaColecao = exportarQuebrarTextoCanvas(ctx, card.colecao.toUpperCase(), larguraFoto, 1)[0];
 
-    ctx.font = "italic 700 15px 'Playfair Display', serif";
+    ctx.font = "italic 700 20px 'Playfair Display', serif";
     const linhasNome = exportarQuebrarTextoCanvas(ctx, card.cor, larguraFoto, EXPORT_GRADE_MAX_LINHAS_NOME);
 
     const gapColecaoBadge = EXPORT_GRADE_GAP_COLECAO_BADGE;
@@ -252,11 +259,11 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
     const yPrimeiraLinhaNome = yUltimaLinhaNome - (linhasNome.length - 1) * linhaAlturaNome;
 
     ctx.fillStyle = "#1E1E1E";
-    ctx.font = "italic 700 15px 'Playfair Display', serif";
+    ctx.font = "italic 700 20px 'Playfair Display', serif";
     linhasNome.forEach((linha, li) => ctx.fillText(linha, x + padCard, yPrimeiraLinhaNome + li * linhaAlturaNome));
 
     ctx.fillStyle = "#6b6b76";
-    ctx.font = "600 11px 'Inter', sans-serif";
+    ctx.font = "600 17px 'Inter', sans-serif";
     ctx.fillText(linhaColecao, x + padCard, yColecao);
 
     ctx.save();
@@ -271,25 +278,25 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
 
     if (emNegociacao) {
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = "italic 700 20px 'Playfair Display', serif";
+      ctx.font = "italic 700 25px 'Playfair Display', serif";
       ctx.textAlign = "center";
-      ctx.fillText("Negociação", x + larguraCard / 2, yBadge + alturaBadge / 2 + 7);
+      ctx.fillText("Negociação", x + larguraCard / 2, yBadge + alturaBadge / 2 + 12);
       ctx.textAlign = "left";
     } else {
       const precoTexto = exportarFormatarPrecoSemPrefixo(card.produto.preco);
 
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = "700 10px 'Inter', sans-serif";
+      ctx.font = "700 16px 'Inter', sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText("R$", xBadge + 11, yBadge + 16);
+      ctx.fillText("R$", xBadge + 14, yBadge + 23);
       ctx.textAlign = "right";
       ctx.fillStyle = "#cfe0f5";
-      ctx.fillText("/par", xBadge + larguraBadge - 11, yBadge + 16);
+      ctx.fillText("/par", xBadge + larguraBadge - 14, yBadge + 23);
 
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = "italic 700 38px 'Playfair Display', serif";
+      ctx.font = "italic 700 36px 'Playfair Display', serif";
       ctx.textAlign = "center";
-      ctx.fillText(precoTexto, x + larguraCard / 2, yBadge + alturaBadge - 14);
+      ctx.fillText(precoTexto, x + larguraCard / 2, yBadge + alturaBadge - 20);
       ctx.textAlign = "left";
     }
   });
@@ -340,8 +347,8 @@ function exportarDesenharCabecalhoVendedorCanvas(ctx, imagemVendedor) {
 // espaço disponível, e portanto quantos cartões cabem por imagem.
 function exportarCalcularGradePng() {
   const colunas = 4;
-  const gutterH = 30;
-  const gutterV = 22;
+  const gutterH = 27; // = gutterH do PDF (4mm) × 6,73
+  const gutterV = 47; // = gutterV do PDF (7mm) × 6,73
   const padCard = EXPORT_GRADE_PADCARD;
   const { esq: areaEsq, dir: areaDir, topo: areaTopo, base: areaBase } = EXPORT_TEMPLATE_AREA;
   const larguraUtil = areaDir - areaEsq;
