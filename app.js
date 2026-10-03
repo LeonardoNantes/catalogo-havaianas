@@ -41,10 +41,13 @@ function mostrarTela(idTela, direcao = "frente") {
     }
   });
   // O botão flutuante do carrinho não aparece na tela do próprio carrinho,
-  // na de pausado nem na de "não encontrado"
+  // na de pausado nem na de "não encontrado". Os botões de exportar
+  // PDF/Imagem (que exportam o carrinho inteiro) aparecem só na tela inicial.
   const btnCarrinho = document.getElementById("btn-carrinho");
+  const acoesExportar = document.querySelector(".acoes-exportar");
   const telasSemCarrinho = ["tela-carrinho", "tela-pausado", "tela-nao-encontrado"];
   btnCarrinho.hidden = telasSemCarrinho.includes(idTela);
+  acoesExportar.hidden = idTela !== "tela-inicial";
   window.scrollTo(0, 0);
 }
 

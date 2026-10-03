@@ -503,13 +503,49 @@ body {
 }
 
 /* ============================================================
-   BOTÃO FLUTUANTE DO CARRINHO
+   AÇÕES FLUTUANTES — exportar carrinho (PDF/Imagem) + carrinho
    ============================================================ */
 
-.btn-carrinho {
+.acoes-flutuantes {
   position: fixed;
   top: 16px;
   right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 30;
+}
+
+.acoes-flutuantes[hidden] {
+  display: none;
+}
+
+.acoes-exportar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acoes-exportar[hidden] {
+  display: none;
+}
+
+.btn-exportar-oferta {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--cor-branco);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--sombra-forte);
+  flex-shrink: 0;
+}
+
+.btn-carrinho {
   background: var(--cor-destaque);
   color: var(--cor-branco);
   border: 2px solid rgba(255, 255, 255, 0.35);
@@ -522,7 +558,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  z-index: 30;
+  flex-shrink: 0;
 }
 
 .btn-carrinho[hidden] {
