@@ -58,8 +58,11 @@ const EXPORT_GRADE_ALTURA_BADGE = 52;
 // A foto do cartão fica um pouco mais baixa que larga (em vez de
 // quadrada) — proporção própria da Imagem, independente do PDF.
 const EXPORT_GRADE_FATOR_ALTURA_FOTO = 0.93;
-// Fator da foto no PDF (só usado lá — a Imagem tem o seu próprio acima).
-const EXPORT_PDF_FATOR_ALTURA_FOTO = 0.84;
+// Fator da foto no PDF — aumentado de 0.84 pra 0.91 (pedido do Leonardo):
+// em vez de deixar o espaço entre fileiras folgado, esse espaço foi
+// reduzido (ver gutterV mais abaixo, em exportarGerarPdfCarrinho) e
+// repassado pra foto, que fica maior — bem perto da proporção da Imagem.
+const EXPORT_PDF_FATOR_ALTURA_FOTO = 0.91;
 // Azul da marca Havaianas (igual à corPrimaria do app) pra etiqueta de
 // preço e nome do vendedor; dourado (igual ao anel da foto do vendedor no
 // cabeçalho do próprio app) pro anel da foto aqui também.
@@ -549,7 +552,7 @@ async function exportarGerarPdfCarrinho() {
 
     const colunas = 4;
     const gutterH = 4;
-    const gutterV = 7;
+    const gutterV = 3.2; // era 7mm — reduzido pra deixar a foto maior (ver EXPORT_PDF_FATOR_ALTURA_FOTO)
     const larguraCard = (larguraUtil - gutterH * (colunas - 1)) / colunas;
     const padCard = 2.2;
     const larguraFoto = larguraCard - padCard * 2;
