@@ -1,5 +1,5 @@
 // ============================================================
-// /api/catalogo — serve a MESMA página do catálogo (index.html), só
+// /api/catalogo — serve a MESMA página do catálogo (catalogo-base.html), só
 // trocando o texto de pré-visualização (og:description) pelo nome do
 // vendedor dono desse link, antes de entregar pro navegador/WhatsApp.
 // ============================================================
@@ -13,15 +13,21 @@
 //
 // Como funciona: o vercel.json manda só a rota "/" pra cá (as outras
 // rotas - style.css, app.js, imagens etc - continuam sendo servidas direto,
-// sem passar por aqui). Essa função busca o index.html original (pedindo
-// ele pelo endereço "/index.html", que NÃO é redirecionado pra cá, então
-// não entra em loop), descobre o vendedor do mesmo jeito que o app já faz
+// sem passar por aqui). Essa função busca o conteúdo real da página pelo
+// endereço "/catalogo-base.html" (NÃO é "/index.html" de propósito: o
+// Vercel serve "index.html" como arquivo estático direto pra "/" por
+// padrão, por cima de qualquer regra do vercel.json - então se a gente
+// buscasse "/index.html" aqui, cairia sempre na versão sem o nome do
+// vendedor trocado). O arquivo "index.html" continua existindo no
+// repositório só como uma cópia de segurança (se essa função falhar por
+// algum motivo, o Vercel ainda tem um catálogo funcionando pra mostrar).
+// Depois descobre o vendedor do mesmo jeito que o app já faz
 // (resolverVendedorId, em supabase-client.js: primeiro o parâmetro ?v=,
 // senão o domínio antigo na tabela dominios_antigos) e troca o texto antes
 // de responder.
 //
 // Se der qualquer erro (Supabase fora do ar, etc), cai pro index.html
-// original sem travar o catálogo pro cliente.
+// (a cópia de segurança) sem travar o catálogo pro cliente.
 
 const SUPABASE_URL = "https://eubbzefshftafjjcirna.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_GZ-duizLJSQSVcdYejzWGQ_wdNUu8vA";
@@ -80,7 +86,7 @@ module.exports = async (req, res) => {
     const origem = `${protocolo}://${req.headers.host}`;
 
     const [respostaHtml, slug] = await Promise.all([
-      fetch(`${origem}/index.html`),
+      fetch(`${origem}/catalogo-base.html`),
       buscarSlug(req),
     ]);
 
@@ -105,4 +111,3 @@ module.exports = async (req, res) => {
     res.redirect(307, "/index.html");
   }
 };
-
