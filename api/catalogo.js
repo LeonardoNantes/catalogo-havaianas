@@ -11,23 +11,27 @@
 // página chegar no WhatsApp. O catálogo em si (produtos, carrinho, etc)
 // continua carregando do jeito de sempre, pelo app.js no navegador.
 //
-// Como funciona: o vercel.json manda só a rota "/" pra cá (as outras
-// rotas - style.css, app.js, imagens etc - continuam sendo servidas direto,
-// sem passar por aqui). Essa função busca o conteúdo real da página pelo
-// endereço "/catalogo-base.html" (NÃO é "/index.html" de propósito: o
-// Vercel serve "index.html" como arquivo estático direto pra "/" por
-// padrão, por cima de qualquer regra do vercel.json - então se a gente
-// buscasse "/index.html" aqui, cairia sempre na versão sem o nome do
-// vendedor trocado). O arquivo "index.html" continua existindo no
-// repositório só como uma cópia de segurança (se essa função falhar por
-// algum motivo, o Vercel ainda tem um catálogo funcionando pra mostrar).
+// Como funciona: o vercel.json manda a rota "/" pra cá (as outras rotas -
+// style.css, app.js, imagens etc - continuam sendo servidas direto, sem
+// passar por aqui). Essa função busca o conteúdo real da página pelo
+// endereço "/catalogo-base.html".
+//
+// IMPORTANTE: não pode existir NENHUM arquivo chamado "index.html" na raiz
+// do repositório. O Vercel serve "index.html" como arquivo estático direto
+// pra "/" automaticamente, por cima de QUALQUER regra do vercel.json - ou
+// seja, só o fato desse arquivo existir já faz o Vercel ignorar essa
+// função inteira pra "/", mesmo com o rewrite configurado certinho (foi
+// exatamente isso que aconteceu na primeira tentativa). Por isso o
+// conteúdo real do catálogo mora em "/catalogo-base.html" (outro nome,
+// sem esse efeito especial), e não em "/index.html".
+//
 // Depois descobre o vendedor do mesmo jeito que o app já faz
 // (resolverVendedorId, em supabase-client.js: primeiro o parâmetro ?v=,
 // senão o domínio antigo na tabela dominios_antigos) e troca o texto antes
 // de responder.
 //
-// Se der qualquer erro (Supabase fora do ar, etc), cai pro index.html
-// (a cópia de segurança) sem travar o catálogo pro cliente.
+// Se der qualquer erro (Supabase fora do ar, etc), cai pro
+// catalogo-base.html original sem travar o catálogo pro cliente.
 
 const SUPABASE_URL = "https://eubbzefshftafjjcirna.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_GZ-duizLJSQSVcdYejzWGQ_wdNUu8vA";
@@ -107,7 +111,7 @@ module.exports = async (req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.status(200).send(html);
   } catch (erro) {
-    console.error("[Havaianas] /api/catalogo: erro geral, caindo pro index.html original:", erro);
-    res.redirect(307, "/index.html");
+    console.error("[Havaianas] /api/catalogo: erro geral, caindo pro catalogo-base.html original:", erro);
+    res.redirect(307, "/catalogo-base.html");
   }
 };
