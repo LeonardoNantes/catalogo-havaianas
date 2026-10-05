@@ -1,15 +1,15 @@
 // ============================================================
 // /api/catalogo — serve a MESMA página do catálogo (catalogo-base.html), só
-// trocando o texto de pré-visualização (og:description) pelo nome do
-// vendedor dono desse link, antes de entregar pro navegador/WhatsApp.
+// trocando o título de pré-visualização (og:title) pelo nome do vendedor
+// dono desse link, antes de entregar pro navegador/WhatsApp.
 // ============================================================
 // Por quê isso existe: o WhatsApp (e similares) não executa o JavaScript
 // da página pra montar o card de pré-visualização do link — ele só lê o
 // HTML bruto que o servidor manda na hora. Então pra aparecer o nome do
-// vendedor certo em "Fulano — facilite suas compras..." a gente precisa
-// descobrir quem é o vendedor e já devolver o texto pronto, antes da
-// página chegar no WhatsApp. O catálogo em si (produtos, carrinho, etc)
-// continua carregando do jeito de sempre, pelo app.js no navegador.
+// vendedor certo em "Havaianas 2026 - Fulano" a gente precisa descobrir
+// quem é o vendedor e já devolver o texto pronto, antes da página chegar
+// no WhatsApp. O catálogo em si (produtos, carrinho, etc) continua
+// carregando do jeito de sempre, pelo app.js no navegador.
 //
 // Como funciona: o vercel.json manda a rota "/" pra cá (as outras rotas -
 // style.css, app.js, imagens etc - continuam sendo servidas direto, sem
@@ -102,11 +102,9 @@ module.exports = async (req, res) => {
     let html = await respostaHtml.text();
     const nome = await buscarNomeVendedor(slug);
 
-    const descricao = nome
-      ? `${nome} — facilite suas compras com o Catálogo Havaianas!`
-      : "Facilite suas compras com o Catálogo Havaianas!";
+    const titulo = nome ? `Havaianas 2026 - ${nome}` : "Havaianas 2026";
 
-    html = html.split("__OG_DESCRIPTION__").join(escaparHtml(descricao));
+    html = html.split("__OG_TITLE__").join(escaparHtml(titulo));
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.status(200).send(html);
