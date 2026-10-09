@@ -69,6 +69,13 @@ const EXPORT_PDF_FATOR_ALTURA_FOTO = 0.91;
 const EXPORT_COR_BADGE = "#0A4595";
 const EXPORT_COR_NOME_VENDEDOR = "#0A4595";
 const EXPORT_COR_ANEL_VENDEDOR = "#d4af37";
+// Selo de preço "vazado" (fundo branco, contorno fino) em vez de preenchido
+// sólido - gasta bem menos tinta quando o vendedor imprime o PDF/Imagem pra
+// levar na mão. O texto principal ("R$"/preço/"Negociação") usa a mesma cor
+// do contorno; "/par" usa este tom mais claro, só pra manter a mesma
+// hierarquia visual que já existia (texto principal em destaque, "/par"
+// discreto) - mesmo recurso já aprovado no Ofertas da Semana.
+const EXPORT_COR_BADGE_CLARA = "#91ABCF";
 
 // ---------- Helpers de desenho (mesmos do Impala/Nadir) ----------
 function exportarDesenharRetanguloArredondado(ctx, x, y, largura, altura, raio) {
@@ -265,18 +272,21 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
     ctx.font = "600 17px 'Inter', sans-serif";
     ctx.fillText(linhaColecao, x + padCard, yColecao);
 
+    // Selo vazado: fundo branco + contorno fino na cor de marca, em vez de
+    // preenchido sólido (gasta bem menos tinta na impressão). O brilho
+    // laranja que existia aqui era só pra destacar o preenchimento sólido
+    // antigo - não faz sentido mais e foi removido.
     ctx.save();
-    ctx.shadowColor = "rgba(255,122,26,0.4)";
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-    ctx.fillStyle = EXPORT_COR_BADGE;
     exportarDesenharRetanguloArredondado(ctx, xBadge, yBadge, larguraBadge, alturaBadge, 10);
+    ctx.fillStyle = "#FFFFFF";
     ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = EXPORT_COR_BADGE;
+    ctx.stroke();
     ctx.restore();
 
     if (emNegociacao) {
-      ctx.fillStyle = "#FFFFFF";
+      ctx.fillStyle = EXPORT_COR_BADGE;
       ctx.font = "italic 700 25px 'Playfair Display', serif";
       ctx.textAlign = "center";
       ctx.fillText("Negociação", x + larguraCard / 2, yBadge + alturaBadge / 2 + 7);
@@ -284,15 +294,15 @@ function exportarDesenharGradeDeCartoes(ctx, cards, imagensPorUrl, opcoes) {
     } else {
       const precoTexto = exportarFormatarPrecoSemPrefixo(card.produto.preco);
 
-      ctx.fillStyle = "#FFFFFF";
+      ctx.fillStyle = EXPORT_COR_BADGE;
       ctx.font = "700 16px 'Inter', sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("R$", xBadge + 11, yBadge + 16);
       ctx.textAlign = "right";
-      ctx.fillStyle = "#cfe0f5";
+      ctx.fillStyle = EXPORT_COR_BADGE_CLARA;
       ctx.fillText("/par", xBadge + larguraBadge - 11, yBadge + 16);
 
-      ctx.fillStyle = "#FFFFFF";
+      ctx.fillStyle = EXPORT_COR_BADGE;
       ctx.font = "italic 700 36px 'Playfair Display', serif";
       ctx.textAlign = "center";
       ctx.fillText(precoTexto, x + larguraCard / 2, yBadge + alturaBadge - 14);
@@ -643,27 +653,31 @@ async function exportarGerarPdfCarrinho() {
       doc.setFontSize(7.2);
       doc.text(linhaColecao, x + padCard, yColecao);
 
-      doc.setFillColor(10, 69, 149);
-      doc.roundedRect(xBadge, yBadge, larguraBadge, alturaBadge, 1.6, 1.6, "F");
+      // Selo vazado: fundo branco + contorno fino na cor de marca, em vez
+      // de preenchido sólido (gasta bem menos tinta na impressão).
+      doc.setDrawColor(10, 69, 149);
+      doc.setFillColor(255, 255, 255);
+      doc.setLineWidth(0.35);
+      doc.roundedRect(xBadge, yBadge, larguraBadge, alturaBadge, 1.6, 1.6, "FD");
 
       if (emNegociacao) {
         doc.setFont("helvetica", "bolditalic");
         doc.setFontSize(10.5);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(10, 69, 149);
         doc.text("Negociação", x + larguraCard / 2, yBadge + alturaBadge / 2 + 1.8, { align: "center" });
       } else {
         const precoTexto = exportarFormatarPrecoSemPrefixo(card.produto.preco);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.6);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(10, 69, 149);
         doc.text("R$", xBadge + 2, yBadge + 3.4);
-        doc.setTextColor(207, 224, 245);
+        doc.setTextColor(145, 171, 207);
         doc.text("/par", xBadge + larguraBadge - 2, yBadge + 3.4, { align: "right" });
 
         doc.setFont("helvetica", "bolditalic");
         doc.setFontSize(15);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(10, 69, 149);
         doc.text(precoTexto, x + larguraCard / 2, yBadge + alturaBadge - 3, { align: "center" });
       }
 
