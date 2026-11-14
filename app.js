@@ -1,8 +1,10 @@
 // ============================================================
-// LÓGICA DO CATÁLOGO HAVAIANAS — versão do site COMPARTILHADO (4 telas,
-// segmentos, coleções, produtos agrupados por cor com várias numerações
-// por card, carrinho e WhatsApp) — reconhece o vendedor por ?v= ou
-// domínio antigo
+// LÓGICA DO CATÁLOGO HAVAIANAS — versão com NAVEGAÇÃO POR ABAS (igual ao
+// formato já usado no Nadir/Impala): segmentos e coleções viram duas
+// faixas de abas no topo, numa tela só (antes eram 3 telas separadas:
+// segmentos, coleções, produtos). O carrinho e o envio pelo WhatsApp
+// continuam exatamente iguais. Reconhece o vendedor por ?v= ou domínio
+// antigo.
 // ============================================================
 
 // codigo -> { produto, quantidade }
@@ -14,20 +16,52 @@ let TODOS_PRODUTOS = [];
 let PRODUTOS_POR_SEGMENTO = new Map(); // segmento -> [produtos]
 let SEGMENTO_ATUAL = null;
 let COLECAO_ATUAL = null;
+let BUSCA_ATIVA = ""; // texto da busca geral (vazio = sem busca, mostra a aba normal)
 let VENDEDOR_ATUAL = null; // { nome, whatsapp, foto_url, area, ... } do vendedor resolvido nesse acesso
 let SLUG_VENDEDOR_ATUAL = null; // slug usado pra separar o carrinho guardado no celular por vendedor
+
+// Ordem fixa dos segmentos nas abas (decidida com o Leonardo) — não é a
+// ordem que vem do banco, por isso precisa estar explícita aqui.
+const SEGMENTO_ORDEM = ["Unissex", "Masculino", "Feminino", "Kids / Baby", "Licenças Adultas"];
+// Só pra EXIBIÇÃO da aba — o valor de verdade salvo no banco (usado pra
+// filtrar/agrupar produtos) continua sendo "Licenças Adultas".
+const SEGMENTO_ROTULO = { "Licenças Adultas": "Licenciados" };
+
+// Ordem fixa das abas de COLEÇÃO dentro do Unissex (pedido do Leonardo) —
+// as outras coleções continuam em ordem alfabética (ver ordenarColecoes).
+// "Top Senses" é o nome exato gravado no banco (conferido no Supabase).
+const COLECAO_ORDEM_UNISSEX = ["Top Adulto", "Brasil", "Tradicional", "Top Senses", "Top Vibes"];
+
+// Ordena os nomes de coleção de um segmento: no Unissex segue a ordem fixa
+// acima (uma coleção nova que apareça lá e ainda não esteja na lista cai no
+// final, em ordem alfabética); nos demais segmentos é sempre alfabética.
+function ordenarColecoes(segmento, nomes) {
+  if (segmento !== "Unissex") {
+    return [...nomes].sort(compararTexto);
+  }
+  return [...nomes].sort((a, b) => {
+    const posA = COLECAO_ORDEM_UNISSEX.indexOf(a);
+    const posB = COLECAO_ORDEM_UNISSEX.indexOf(b);
+    if (posA === -1 && posB === -1) return compararTexto(a, b);
+    if (posA === -1) return 1;
+    if (posB === -1) return -1;
+    return posA - posB;
+  });
+}
 
 // ---------- Formatação ----------
 function formatarPreco(valor) {
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-// Rótulo de preço de uma coleção: usa a linha de qualquer produto dela
-// (preco/negociacao são os mesmos pra todo mundo na mesma coleção).
-function rotuloPrecoColecao(produtosDaColecao) {
-  const exemplo = produtosDaColecao[0];
-  if (exemplo.negociacao) return "Negociação";
-  return formatarPreco(exemplo.preco);
+// Tira acento e caixa, pra busca não se importar com maiúscula/minúscula
+// nem acentuação ("Nao" acha "Não", "AZUL" acha "azul" etc).
+function normalizarTexto(texto) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .trim();
 }
 
 // ---------- Navegação entre telas ----------
@@ -41,30 +75,21 @@ function mostrarTela(idTela, direcao = "frente") {
       tela.classList.add(direcao === "voltar" ? "tela-anim-voltar" : "tela-anim-frente");
     }
   });
-  // O botão flutuante do carrinho não aparece na tela do próprio carrinho,
-  // na de pausado nem na de "não encontrado". Os botões de exportar
-  // PDF/Imagem (que exportam o carrinho inteiro) aparecem só na tela inicial.
-  const btnCarrinho = document.getElementById("btn-carrinho");
-  const acoesExportar = document.querySelector(".acoes-exportar");
-  const telasSemCarrinho = ["tela-carrinho", "tela-pausado", "tela-nao-encontrado"];
-  btnCarrinho.hidden = telasSemCarrinho.includes(idTela);
-  acoesExportar.hidden = idTela !== "tela-inicial";
+  // A barra fixa "ir pro carrinho" só faz sentido na tela do catálogo —
+  // não aparece na tela do próprio carrinho, na de pausado nem na de
+  // "não encontrado".
+  const barraCarrinho = document.getElementById("barra-ir-carrinho");
+  barraCarrinho.hidden = idTela !== "tela-catalogo";
   window.scrollTo(0, 0);
 }
 
 // ---------- Cabeçalho: parte que é igual pra todo mundo (marca) ----------
 function iniciarCabecalhoMarca() {
   document.getElementById("nome-catalogo").textContent = CONFIG.nomeCatalogo;
-  document.getElementById("vendedor-slogan").textContent = CONFIG.vendedorPadrao.slogan;
   document.getElementById("vendedor-foto").src = CONFIG.vendedorPadrao.foto;
-  document.getElementById("slogan-marca").textContent = CONFIG.sloganMarca;
   document.documentElement.style.setProperty("--cor-primaria", CONFIG.corPrimaria);
   document.documentElement.style.setProperty("--cor-destaque", CONFIG.corDestaque);
   document.title = CONFIG.nomeCatalogo;
-
-  const btnSolicitar = document.getElementById("btn-solicitar-catalogo");
-  const texto = encodeURIComponent(PLATAFORMA.mensagemPadrao);
-  btnSolicitar.href = `https://wa.me/${PLATAFORMA.whatsapp}?text=${texto}`;
 }
 
 // ---------- Cabeçalho: parte que depende do vendedor identificado ----------
@@ -92,82 +117,128 @@ function paletaDoSegmento(segmento) {
   return CONFIG.paletasPorSegmento[segmento] || CONFIG.paletasPorSegmento.Masculino;
 }
 
-// ---------- Tela 1: cards de SEGMENTO ----------
-function renderizarCardsSegmento() {
-  const grade = document.getElementById("grade-segmentos");
-  grade.innerHTML = "";
-
-  for (const [segmento, produtos] of PRODUTOS_POR_SEGMENTO) {
-    // O card do segmento usa o primeiro tom (o mais forte) da paleta dele.
-    const cor = paletaDoSegmento(segmento)[0];
-
-    const card = document.createElement("button");
-    card.className = "segmento-card";
-    card.style.setProperty("--cor-card", cor);
-    card.innerHTML = `<span class="segmento-card-nome">${segmento}</span>`;
-    card.addEventListener("click", () => abrirSegmento(segmento));
-    grade.appendChild(card);
-  }
+// A aba escolhida desliza sempre pro meio da barra, pra dar pra ver as
+// abas de trás e as da frente — mesma regra já usada no Impala/Nadir.
+// É assim também que dá pra "correr" a barra sem precisar arrastar: cada
+// clique centraliza e revela as abas vizinhas.
+function centralizarAbaAtiva(nav) {
+  const ativa = nav.querySelector(".ativa");
+  if (!ativa) return;
+  const alvo = ativa.offsetLeft - (nav.clientWidth - ativa.clientWidth) / 2;
+  nav.scrollTo({ left: Math.max(0, alvo), behavior: "smooth" });
 }
 
-// ---------- Tela 2: cards de COLEÇÃO (com preço ou "Negociação") ----------
-function abrirSegmento(segmento) {
+// ---------- Abas de SEGMENTO (faixa fixa no topo) ----------
+function renderAbasSegmento() {
+  const nav = document.getElementById("abas-segmento");
+  nav.innerHTML = "";
+
+  SEGMENTO_ORDEM.forEach((segmento) => {
+    if (!PRODUTOS_POR_SEGMENTO.has(segmento)) return; // segmento sem produto nenhum nesse vendedor
+    const ativo = !BUSCA_ATIVA && segmento === SEGMENTO_ATUAL;
+    const btn = document.createElement("button");
+    btn.className = "aba-segmento" + (ativo ? " ativa" : "");
+    btn.textContent = SEGMENTO_ROTULO[segmento] || segmento;
+    if (ativo) btn.style.background = paletaDoSegmento(segmento)[0];
+    btn.addEventListener("click", () => selecionarSegmento(segmento));
+    nav.appendChild(btn);
+  });
+  centralizarAbaAtiva(nav);
+}
+
+function selecionarSegmento(segmento) {
+  if (BUSCA_ATIVA) fecharBusca();
   SEGMENTO_ATUAL = segmento;
-  document.getElementById("titulo-segmento").textContent = segmento;
-  renderizarCardsColecao(PRODUTOS_POR_SEGMENTO.get(segmento) || []);
-  mostrarTela("tela-segmento");
+  const colecoes = agruparPor(PRODUTOS_POR_SEGMENTO.get(segmento) || [], "colecao");
+  const nomesEmOrdem = ordenarColecoes(segmento, colecoes.keys());
+  COLECAO_ATUAL = nomesEmOrdem.length ? nomesEmOrdem[0] : null;
+  renderAbasSegmento();
+  renderAbasColecao();
+  renderLista();
 }
 
-function renderizarCardsColecao(produtosDoSegmento) {
-  const grade = document.getElementById("grade-colecoes");
-  grade.innerHTML = "";
-  const porColecao = agruparPor(produtosDoSegmento, "colecao");
-  const paleta = paletaDoSegmento(SEGMENTO_ATUAL);
-  let i = 0;
+// ---------- Abas de COLEÇÃO (do segmento selecionado) ----------
+function renderAbasColecao() {
+  const nav = document.getElementById("abas-colecao");
+  nav.hidden = !!BUSCA_ATIVA;
+  nav.innerHTML = "";
+  if (!SEGMENTO_ATUAL) return;
 
-  for (const [colecao, produtos] of porColecao) {
-    const cor = paleta[i % paleta.length];
-    i++;
-
-    const card = document.createElement("button");
-    card.className = "colecao-card";
-    card.style.setProperty("--cor-card", cor);
-    card.innerHTML = `
-      <span class="colecao-card-nome">${colecao}</span>
-      <span class="colecao-card-preco">${rotuloPrecoColecao(produtos)}</span>
-    `;
-    card.addEventListener("click", () => abrirColecao(colecao));
-    grade.appendChild(card);
-  }
+  const porColecao = agruparPor(PRODUTOS_POR_SEGMENTO.get(SEGMENTO_ATUAL) || [], "colecao");
+  const nomesEmOrdem = ordenarColecoes(SEGMENTO_ATUAL, porColecao.keys());
+  nomesEmOrdem.forEach((colecao) => {
+    const btn = document.createElement("button");
+    btn.className = "aba-colecao" + (colecao === COLECAO_ATUAL ? " ativa" : "");
+    btn.textContent = colecao;
+    btn.addEventListener("click", () => selecionarColecao(colecao));
+    nav.appendChild(btn);
+  });
+  centralizarAbaAtiva(nav);
 }
 
-// ---------- Tela 3: cards de PRODUTO (um por cor, com todas as numerações) ----------
-function abrirColecao(colecao) {
+function selecionarColecao(colecao) {
   COLECAO_ATUAL = colecao;
-  document.getElementById("titulo-colecao").textContent = colecao;
-
-  const produtosDaColecao = (PRODUTOS_POR_SEGMENTO.get(SEGMENTO_ATUAL) || []).filter(
-    (p) => p.colecao === colecao
-  );
-
-  renderizarGradeProdutos(produtosDaColecao);
-  mostrarTela("tela-colecao");
+  renderAbasColecao();
+  renderLista();
 }
 
-function criarCardProduto(cor, numeracoes) {
+// ---------- Busca geral (todos os segmentos/coleções — por coleção, cor ou numeração) ----------
+// O cliente pode procurar pelo nome da coleção, pela cor, ou pela
+// numeração (inclusive abreviada: "31/2" acha qualquer numeração que
+// comece com "31", então acha "31/32"). Todas as palavras digitadas
+// precisam bater (uma busca com duas palavras funciona como um "E").
+function unidadesDaBusca(busca) {
+  const termos = normalizarTexto(busca).split(/\s+/).filter(Boolean);
+  const resultado = [];
+
+  PRODUTOS_POR_SEGMENTO.forEach((produtosDoSegmento, segmento) => {
+    const porColecao = agruparPor(produtosDoSegmento, "colecao");
+    porColecao.forEach((produtosDaColecao, colecao) => {
+      const porCor = agruparPor(produtosDaColecao, "cor");
+      porCor.forEach((numeracoes, cor) => {
+        const textoBase = normalizarTexto(`${segmento} ${colecao} ${cor}`);
+        const bate = termos.every((termo) => {
+          if (textoBase.includes(termo)) return true;
+          const comecaComDigitos = termo.match(/^(\d{2,})/);
+          if (comecaComDigitos) {
+            const prefixo = comecaComDigitos[1];
+            return numeracoes.some((p) => String(p.numeracao).replace("/", "").startsWith(prefixo));
+          }
+          return false;
+        });
+        if (bate) resultado.push({ segmento, colecao, cor, numeracoes });
+      });
+    });
+  });
+
+  return resultado;
+}
+
+// ---------- Card de produto (1 card = 1 cor, com a grade de numerações) ----------
+function criarCardProduto(unidade, mostrarContexto) {
+  const { colecao, cor, numeracoes } = unidade;
+  const primeiro = numeracoes[0];
+  const rotuloPreco = primeiro.negociacao ? "Negociação" : formatarPreco(primeiro.preco);
+
   const card = document.createElement("article");
   card.className = "produto-card-grupo";
-
-  const primeiro = numeracoes[0];
   card.innerHTML = `
-    <div class="produto-imagem-wrap-grupo">
-      <img class="produto-imagem-grupo" src="${primeiro.imagem_url}" alt="${cor}" loading="lazy" />
-    </div>
-    <div class="produto-info-grupo">
+    <div class="produto-info-topo">
       <h3 class="produto-cor-nome">${cor}</h3>
+      <span class="produto-preco ${primeiro.negociacao ? "negociacao" : ""}">${rotuloPreco}</span>
+    </div>
+    ${mostrarContexto ? `<p class="produto-contexto">${unidade.segmento} · ${colecao}</p>` : ""}
+    <div class="produto-corpo-grupo">
+      <div class="produto-imagem-wrap-grupo">
+        <img class="produto-imagem-grupo" src="${primeiro.imagem_url || ""}" alt="${cor}" loading="lazy" />
+      </div>
       <div class="grade-numeracoes"></div>
     </div>
   `;
+
+  card
+    .querySelector(".produto-imagem-wrap-grupo")
+    .addEventListener("click", () => abrirFotoAmpliada(primeiro.imagem_url));
 
   const gradeNumeracoes = card.querySelector(".grade-numeracoes");
   numeracoes.forEach((produto) => {
@@ -177,7 +248,7 @@ function criarCardProduto(cor, numeracoes) {
     item.className = "numeracao-item";
     item.innerHTML = `
       <span class="numeracao-item-tam">${produto.numeracao}</span>
-      <div class="qtd-seletor qtd-seletor-compacto">
+      <div class="qtd-seletor">
         <button class="qtd-btn qtd-menos" aria-label="Diminuir quantidade">−</button>
         <span class="qtd-valor">${quantidadeAtual}</span>
         <button class="qtd-btn qtd-mais" aria-label="Aumentar quantidade">+</button>
@@ -198,15 +269,70 @@ function criarCardProduto(cor, numeracoes) {
   return card;
 }
 
-function renderizarGradeProdutos(produtosDaColecao) {
-  const grade = document.getElementById("grade-produtos");
-  grade.innerHTML = "";
-  const porCor = agruparPor(produtosDaColecao, "cor");
-  const fragmento = document.createDocumentFragment();
-  for (const [cor, numeracoes] of porCor) {
-    fragmento.appendChild(criarCardProduto(cor, numeracoes));
+// ---------- Renderiza a lista principal (aba normal OU resultado de busca) ----------
+function renderLista() {
+  const lista = document.getElementById("grade-produtos");
+  const resumo = document.getElementById("busca-resumo");
+  lista.innerHTML = "";
+
+  let unidades;
+  if (BUSCA_ATIVA) {
+    unidades = unidadesDaBusca(BUSCA_ATIVA);
+    resumo.hidden = false;
+    resumo.textContent = `${unidades.length} ${unidades.length === 1 ? "cor encontrada" : "cores encontradas"} em todos os segmentos`;
+  } else {
+    resumo.hidden = true;
+    if (!SEGMENTO_ATUAL || !COLECAO_ATUAL) {
+      lista.innerHTML = `<p class="sem-itens">Nenhum item disponível.</p>`;
+      return;
+    }
+    const produtosDaColecao = (PRODUTOS_POR_SEGMENTO.get(SEGMENTO_ATUAL) || []).filter(
+      (p) => p.colecao === COLECAO_ATUAL
+    );
+    const porCor = agruparPor(produtosDaColecao, "cor");
+    unidades = [...porCor.entries()].map(([cor, numeracoes]) => ({
+      segmento: SEGMENTO_ATUAL,
+      colecao: COLECAO_ATUAL,
+      cor,
+      numeracoes,
+    }));
   }
-  grade.appendChild(fragmento);
+
+  if (unidades.length === 0) {
+    lista.innerHTML = `<p class="sem-itens">${BUSCA_ATIVA ? "Nenhuma cor encontrada." : "Nenhum item disponível."}</p>`;
+    return;
+  }
+
+  const fragmento = document.createDocumentFragment();
+  unidades.forEach((unidade) => fragmento.appendChild(criarCardProduto(unidade, !!BUSCA_ATIVA)));
+  lista.appendChild(fragmento);
+}
+
+// ---------- Foto ampliada (toque na foto do produto) — igual ao Impala/Nadir ----------
+function abrirFotoAmpliada(url) {
+  document.getElementById("foto-zoom-img").src = url;
+  document.getElementById("foto-zoom-fundo").hidden = false;
+}
+
+function fecharFotoAmpliada() {
+  document.getElementById("foto-zoom-fundo").hidden = true;
+  document.getElementById("foto-zoom-img").removeAttribute("src");
+}
+
+// ---------- Busca: abrir/fechar a barra ----------
+function abrirBusca() {
+  document.getElementById("barra-busca").classList.add("aberta");
+  document.getElementById("btn-busca").classList.add("ativo");
+  document.getElementById("campo-busca").focus();
+}
+function fecharBusca() {
+  document.getElementById("barra-busca").classList.remove("aberta");
+  document.getElementById("btn-busca").classList.remove("ativo");
+  document.getElementById("campo-busca").value = "";
+  BUSCA_ATIVA = "";
+  renderAbasSegmento();
+  renderAbasColecao();
+  renderLista();
 }
 
 // ---------- Carrinho ----------
@@ -228,15 +354,20 @@ function alterarQuantidade(produto, delta, qtdValorEl) {
   limparFlagEnviado();
 }
 
+// Atualiza o texto/estado da barra fixa "Ir para o carrinho" lá embaixo
+// (substitui o antigo botão flutuante redondo).
 function atualizarContadorCarrinho() {
   let total = 0;
   carrinho.forEach((item) => (total += item.quantidade));
-  document.getElementById("carrinho-contagem").textContent = total;
 
-  const btnCarrinho = document.getElementById("btn-carrinho");
-  btnCarrinho.classList.remove("pulso");
-  void btnCarrinho.offsetWidth;
-  btnCarrinho.classList.add("pulso");
+  const btn = document.getElementById("btn-ir-carrinho");
+  if (total === 0) {
+    btn.disabled = true;
+    btn.textContent = "Nenhum item selecionado";
+  } else {
+    btn.disabled = false;
+    btn.textContent = `Ir para o carrinho (${total} ${total === 1 ? "item" : "itens"})`;
+  }
 }
 
 // Soma só os itens de coleções COM preço definido — coleções em negociação
@@ -484,18 +615,8 @@ function abrirCarrinho() {
 }
 
 function voltarDoCarrinho() {
-  if (COLECAO_ATUAL && SEGMENTO_ATUAL) {
-    const produtosDaColecao = (PRODUTOS_POR_SEGMENTO.get(SEGMENTO_ATUAL) || []).filter(
-      (p) => p.colecao === COLECAO_ATUAL
-    );
-    renderizarGradeProdutos(produtosDaColecao);
-    mostrarTela("tela-colecao", "voltar");
-  } else if (SEGMENTO_ATUAL) {
-    renderizarCardsColecao(PRODUTOS_POR_SEGMENTO.get(SEGMENTO_ATUAL) || []);
-    mostrarTela("tela-segmento", "voltar");
-  } else {
-    mostrarTela("tela-inicial", "voltar");
-  }
+  renderLista(); // sincroniza as quantidades mostradas nos cards, caso tenham mudado dentro do carrinho
+  mostrarTela("tela-catalogo", "voltar");
 }
 
 // ---------- Envio do pedido pelo WhatsApp ----------
@@ -614,7 +735,7 @@ async function iniciar() {
 
   const statusMsg = document.getElementById("status-msg");
   statusMsg.hidden = false;
-  statusMsg.innerHTML = `<span class="spinner"></span> Carregando segmentos...`;
+  statusMsg.innerHTML = `<span class="spinner"></span> Carregando catálogo...`;
 
   TODOS_PRODUTOS = await buscarProdutos(statusVendedor.area);
   PRODUTOS_POR_SEGMENTO = agruparPor(TODOS_PRODUTOS, "segmento");
@@ -624,20 +745,34 @@ async function iniciar() {
   atualizarContadorCarrinho();
 
   statusMsg.hidden = true;
-  renderizarCardsSegmento();
+  renderAbasSegmento();
+  const primeiroSegmento = SEGMENTO_ORDEM.find((s) => PRODUTOS_POR_SEGMENTO.has(s));
+  if (primeiroSegmento) selecionarSegmento(primeiroSegmento);
 
-  document.getElementById("btn-carrinho").addEventListener("click", abrirCarrinho);
-  document.getElementById("btn-voltar-segmento").addEventListener("click", () => {
-    SEGMENTO_ATUAL = null;
-    mostrarTela("tela-inicial", "voltar");
-  });
-  document.getElementById("btn-voltar-colecao").addEventListener("click", () => {
-    COLECAO_ATUAL = null;
-    mostrarTela("tela-segmento", "voltar");
-  });
+  document.getElementById("btn-ir-carrinho").addEventListener("click", abrirCarrinho);
   document.getElementById("btn-voltar-carrinho").addEventListener("click", voltarDoCarrinho);
   document.getElementById("btn-enviar-pedido").addEventListener("click", enviarPedidoWhatsapp);
   document.getElementById("btn-limpar-carrinho").addEventListener("click", limparCarrinho);
+
+  // Busca geral
+  document.getElementById("btn-busca").addEventListener("click", () => {
+    document.getElementById("barra-busca").classList.contains("aberta") ? fecharBusca() : abrirBusca();
+  });
+  document.getElementById("fechar-busca").addEventListener("click", fecharBusca);
+
+  // Foto ampliada (toque na foto do produto)
+  document.getElementById("foto-zoom-fundo").addEventListener("click", (e) => {
+    if (e.target.id === "foto-zoom-fundo" || e.target.id === "foto-zoom-fechar") fecharFotoAmpliada();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !document.getElementById("foto-zoom-fundo").hidden) fecharFotoAmpliada();
+  });
+  document.getElementById("campo-busca").addEventListener("input", (e) => {
+    BUSCA_ATIVA = e.target.value.trim();
+    renderAbasSegmento();
+    renderAbasColecao();
+    renderLista();
+  });
 
   // Caixinha "você já enviou esses itens?" — some depois de respondida.
   document.getElementById("btn-reenvio-limpar").addEventListener("click", () => {
@@ -657,7 +792,7 @@ async function iniciar() {
   });
 
   carregando.hidden = true;
-  mostrarTela("tela-inicial");
+  mostrarTela("tela-catalogo");
   verificarPerguntaReenvio();
 }
 
