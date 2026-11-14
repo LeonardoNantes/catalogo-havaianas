@@ -301,8 +301,8 @@ body {
 .abas-linha-segmento {
   background: var(--cor-branco);
   border-bottom: 1px solid var(--cor-borda);
-  gap: 3px;
-  padding: 8px 6px;
+  gap: 1px;
+  padding: 8px 3px;
 }
 
 .abas-linha-colecao {
@@ -315,9 +315,9 @@ body {
   border: none;
   background: var(--cor-fundo);
   color: var(--cor-texto);
-  font-size: 0.68rem;
+  font-size: 0.73rem;
   font-weight: 700;
-  padding: 7px 7px;
+  padding: 7px 5px;
   border-radius: 50px;
   cursor: pointer;
   flex-shrink: 0;
@@ -355,7 +355,9 @@ body {
 .grade-produtos {
   max-width: 640px;
   margin: 0 auto;
-  padding: 10px 12px 0;
+  /* recuo generoso embaixo pra o ultimo card (e os botoes +/- dele) nao
+     ficarem escondidos atras da barra fixa "ir pro carrinho" */
+  padding: 10px 12px 110px;
   display: flex;
   flex-direction: column;
   gap: 12px;
